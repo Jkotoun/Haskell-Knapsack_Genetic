@@ -6,8 +6,8 @@ import Types
 import System.Environment
 import qualified Text.Parsec as P
 import qualified Text.Parsec.String as P
+import Control.Applicative ((<$>)) --needed for version 7
 
-----general helper functions--------
 -- map bitmap int array to string format with spaces
 printSolutionBitmap :: [Int] -> IO ()
 printSolutionBitmap arr = do
@@ -78,18 +78,18 @@ knapsackParser = do
   _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "maxWeight:")
   _ <- P.many (P.string " ")
-  maxWeight <- read <$> P.many1 P.digit
+  maximalItemsWeight <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
   _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "minCost:")
   _ <- P.many (P.string " ")
-  minCost <- read <$> P.many1 P.digit
+  minimalItemsCost <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
   _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "items:")
   _ <- P.manyTill P.anyChar P.newline
-  items <- P.many itemParser
-  return (Knapsack {maxWeight = maxWeight, minCost = minCost, items = items})
+  itemsList <- P.many itemParser
+  return (Knapsack {maxWeight = maximalItemsWeight, minCost = minimalItemsCost, items = itemsList})
 
 -- parser for one item from list of items
 itemParser :: P.ParsecT String u Data.Functor.Identity.Identity Item
@@ -100,15 +100,15 @@ itemParser = do
   _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "weight:")
   _ <- P.many (P.string " ")
-  weight <- read <$> P.many1 P.digit
+  itemWeight <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
   _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "cost:")
   _ <- P.many (P.string " ")
-  cost <- read <$> P.many1 P.digit
+  itemCost <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
   _ <- P.manyTill P.anyChar P.newline
-  return (Item {weight = weight, cost = cost})
+  return (Item {weight = itemWeight, cost = itemCost})
 
 main :: IO ()
 main = do

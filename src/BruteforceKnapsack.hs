@@ -25,7 +25,7 @@ bestSolution (currentBestCost, solutionItems) maximalWeight minimalCost (x : xs)
 -- check if given solution is valid and is better than current best found
 isValidAndBetter :: Int -> Int -> Int -> [Item] -> (Bool, Int)
 isValidAndBetter currentBest maximalWeight minimalCost itemsList =
-  let (totalWeight, totalCost) = foldl (\(weightSum, costSum) (Item weight cost) -> (weightSum + weight, costSum + cost)) (0, 0) itemsList
+  let (totalWeight, totalCost) = foldl (\(weightSum, costSum) (Item itemWeight itemCost) -> (weightSum + itemWeight, costSum + itemCost)) (0, 0) itemsList
    in (totalWeight <= maximalWeight && totalCost >= minimalCost && totalCost > currentBest, totalCost)
 
 -- map found solution to bitmap
