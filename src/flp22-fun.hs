@@ -1,13 +1,9 @@
-
+import Control.Monad (replicateM)
+import Data.List (maximumBy, subsequences)
 import System.Environment
+import System.Random (randomRIO)
 import Text.Parsec qualified as P
 import Text.Parsec.String qualified as P
-import Data.List (subsequences, intersperse, maximumBy)
-
-import System.Random (randomRIO, RandomGen (split))
-import Control.Monad (replicateM)
-
-
 
 data Item = Item
   { weight :: Int,
@@ -20,207 +16,211 @@ data Knapsack = Knapsack
     minCost :: Int,
     items :: [Item]
   }
-  deriving (Show,Eq)
+  deriving (Show, Eq)
 
+------------ Genetic algo functions---------
 
+-- dot product of certain item prop and bitmap
 itemsPropBitmapDotProduct :: (Item -> Int) -> [Item] -> [Int] -> Int
-itemsPropBitmapDotProduct prop items bitmap =  sum $ zipWith (*) (map prop items) bitmap
+itemsPropBitmapDotProduct prop items bitmap = sum $ zipWith (*) (map prop items) bitmap
 
+-- value of solution as binary array for given knapsack problem input
 solutionValue :: [Int] -> Knapsack -> Int
-solutionValue bitmap knapsack = if itemsPropBitmapDotProduct weight (items knapsack) bitmap > maxWeight knapsack  then 0 else itemsPropBitmapDotProduct cost (items knapsack) bitmap
+solutionValue bitmap knapsack = if itemsPropBitmapDotProduct weight (items knapsack) bitmap > maxWeight knapsack then 0 else itemsPropBitmapDotProduct cost (items knapsack) bitmap
 
-randomSolution :: Int -> IO[Int]
-randomSolution individualSize = replicateM individualSize $ randomRIO (0,1)
+-- random solution as binary array for given
+randomSolution :: Int -> IO [Int]
+randomSolution individualSize = replicateM individualSize $ randomRIO (0, 1)
 
-randomPopulation :: Int -> Int -> IO[[Int]]
+-- create population of random solutions
+randomPopulation :: Int -> Int -> IO [[Int]]
 randomPopulation populationSize individualSize = replicateM populationSize (randomSolution individualSize)
 
-miniTournament :: Knapsack -> [[Int]] -> IO[Int]
+-- select random 2 individuals from population and return better of them
+miniTournament :: Knapsack -> [[Int]] -> IO [Int]
 miniTournament knapsack population = do
-  randIndex1 <- randomRIO (0,populationSize-1)
-  randIndex2 <- randomRIO (0,populationSize-1)
-  let potentialParent1 = population!!randIndex1
-  let potentialParent2 = population!!randIndex2
-  if solutionValue potentialParent1  knapsack >  solutionValue potentialParent2 knapsack then return potentialParent1  else return potentialParent2
+  randIndex1 <- randomRIO (0, populationSize - 1)
+  randIndex2 <- randomRIO (0, populationSize - 1)
+  let potentialParent1 = population !! randIndex1
+  let potentialParent2 = population !! randIndex2
+  if solutionValue potentialParent1 knapsack > solutionValue potentialParent2 knapsack then return potentialParent1 else return potentialParent2
   where
-  populationSize = length population
+    populationSize = length population
 
-
-crossover :: [Int] -> [Int] -> IO[[Int]]
+-- crossover 2 individuals in middle
+crossover :: [Int] -> [Int] -> IO [[Int]]
 crossover parent1 parent2 =
   let middle = length parent1 `div` 2
-  in
-  return [take middle parent1 ++ drop middle parent2, take middle parent2 ++ drop middle parent1]
+   in return [take middle parent1 ++ drop middle parent2, take middle parent2 ++ drop middle parent1]
 
-mutate :: [Int] ->IO[Int]
+-- mutate random bit
+mutate :: [Int] -> IO [Int]
 mutate parent = do
-  bitIndex <- randomRIO (0, length parent-1)
-  return (take bitIndex parent ++ [if parent!!bitIndex == 0 then 1 else 0] ++ drop (bitIndex+1) parent)
+  bitIndex <- randomRIO (0, length parent - 1)
+  return (take bitIndex parent ++ [if parent !! bitIndex == 0 then 1 else 0] ++ drop (bitIndex + 1) parent)
 
-nextGenParents :: [[Int]] -> Knapsack -> Float -> Float -> IO[[Int]]
+-- select two parents from population by minitournament, perform crossover and mutation with respect to crossover and mutation rate
+nextGenParents :: [[Int]] -> Knapsack -> Float -> Float -> IO [[Int]]
 nextGenParents population knapsack crossoverRate mutationRate = do
   parent1 <- miniTournament knapsack population
   parent2 <- miniTournament knapsack population
-  randCrossover <- randomRIO (0,1)::IO Float
-  randMutationParent1 <- randomRIO (0,1)::IO Float
-  randMutationParent2 <- randomRIO (0,1)::IO Float
+  randCrossover <- randomRIO (0, 1) :: IO Float
+  randMutationParent1 <- randomRIO (0, 1) :: IO Float
+  randMutationParent2 <- randomRIO (0, 1) :: IO Float
   [crossedParent1, crossedParent2] <- if randCrossover <= crossoverRate then crossover parent1 parent2 else return [parent1, parent2]
   mutatedParent1 <- if randMutationParent1 <= mutationRate then mutate crossedParent1 else return crossedParent1
-  mutatedParent2 <- if randMutationParent2 <= mutationRate then mutate crossedParent1 else return crossedParent1
+  mutatedParent2 <- if randMutationParent2 <= mutationRate then mutate crossedParent2 else return crossedParent2
   return [mutatedParent1, mutatedParent2]
 
-selectParentTournament knapsack population=
-  do
-  parent1 <- miniTournament knapsack population
-  parent2 <- miniTournament knapsack population
-  return [parent1, parent2]
-
-genFitnessMean :: [[Int]] -> Knapsack -> Int
-genFitnessMean newGen knapsack = sum (map (`solutionValue` knapsack) newGen) `div` length newGen
-
-
+-- get best two individuals from population (reproduction)
 getTwoFittest :: Knapsack -> [[Int]] -> ([Int], [Int])
-getTwoFittest knapsack population = 
-  let (max1, max2) = foldl (\(max1, max2) x -> if solutionValue x knapsack  > solutionValue max1 knapsack then (x, max1) else if solutionValue x knapsack > solutionValue max2 knapsack then (max2, x) else (max1, max2)) (head population, head population) population
-  in (max1, max2)
+getTwoFittest knapsack population =
+  let (best, sndBest) = foldl (\(max1, max2) x -> if solutionValue x knapsack > solutionValue max1 knapsack then (x, max1) 
+      else if solutionValue x knapsack > solutionValue max2 knapsack then (max2, x) 
+      else (max1, max2)) (head population, head population) population
+   in (best, sndBest)
 
-
+-- create new generation of population, two variants with respect to reproductionRate
 nextGen :: Knapsack -> Int -> Float -> Float -> Float -> [[Int]] -> IO [[Int]]
 nextGen knapsack populationSize crossoverRate mutationRate reproductionRate population = do
-  reproductionRand <- randomRIO (0,1)::IO Float
-  
-  if reproductionRand <= reproductionRate then do
-    let newPopSize = (populationSize `div` 2)-1
-    let twoFittest = getTwoFittest knapsack population
-    newGen <- replicateM newPopSize $ nextGenParents population knapsack crossoverRate mutationRate
-    return (fst twoFittest : snd twoFittest : concat newGen )
-  else
-    do
-    let newPopSize = populationSize `div` 2
-    newGen <- replicateM newPopSize $ nextGenParents population knapsack crossoverRate mutationRate
-    return $ concat newGen 
+  reproductionRand <- randomRIO (0, 1) :: IO Float
+  let halfPopulation = populationSize `div` 2 -- each nextGenParent function execution returns 2 new individuals
+  let newGeneration = flip replicateM $ nextGenParents population knapsack crossoverRate mutationRate
+  if reproductionRand <= reproductionRate
+    then do
+      let twoFittest = getTwoFittest knapsack population
+      newGen <- newGeneration (halfPopulation - 1)
+      return (fst twoFittest : snd twoFittest : concat newGen)
+    else do
+      newGen <- newGeneration halfPopulation
+      return $ concat newGen
 
-
+-- generate N new generations
 geneticIterations :: Knapsack -> Int -> Float -> Float -> Float -> [[Int]] -> Int -> IO [[Int]]
-geneticIterations knapsack populationSize crossoverRate mutationRate reproductionRate population 0 = return population
+geneticIterations _ _ _ _ _ population 0 = return population
 geneticIterations knapsack populationSize crossoverRate mutationRate reproductionRate population n = do
   newPopulation <- nextGen knapsack populationSize crossoverRate mutationRate reproductionRate population
-  geneticIterations knapsack populationSize crossoverRate mutationRate reproductionRate newPopulation (n-1)
+  geneticIterations knapsack populationSize crossoverRate mutationRate reproductionRate newPopulation (n - 1)
 
-bestGeneticSolution :: Knapsack ->[[Int]] -> Maybe [Int]
-bestGeneticSolution knapsack solutions=
+-- select best solution from final population
+bestGeneticSolution :: Knapsack -> [[Int]] -> Maybe [Int]
+bestGeneticSolution knapsack solutions =
   let bestGenSolution = maximumBy (\x y -> if solutionValue x knapsack > solutionValue y knapsack then GT else LT) solutions
-  in
-  if solutionValue bestGenSolution knapsack >= minCost knapsack then Just bestGenSolution else Nothing
+   in if solutionValue bestGenSolution knapsack >= minCost knapsack then Just bestGenSolution else Nothing
 
-geneticAlg knapsack=
+-- run genetic algo with parameters and return resulting IO
+geneticAlg :: Knapsack -> IO ()
+geneticAlg knapsack =
   do
-  let populationSize = 150
-  let crossoverRate = 0.5
-  let mutationRate = 0.5
-  let numIterations = 500
-  let reproductionRate = 0.7
-  initialPopulation <- randomPopulation populationSize (length $ items knapsack)
-  finalPopulation <- geneticIterations knapsack populationSize crossoverRate mutationRate reproductionRate initialPopulation  numIterations
-  let best = bestGeneticSolution knapsack finalPopulation
-  print $ flip solutionValue knapsack $ maximumBy (\x y -> if solutionValue x knapsack > solutionValue y knapsack then GT else LT) finalPopulation
-  case bestGeneticSolution knapsack finalPopulation of 
-    Just solution -> printBitmap solution
-    Nothing -> print False
+    let populationSize = 150
+    let crossoverRate = 0.5
+    let mutationRate = 0.5
+    let numIterations = 100
+    let reproductionRate = 0.7
+    initialPopulation <- randomPopulation populationSize (length $ items knapsack)
+    finalPopulation <- geneticIterations knapsack populationSize crossoverRate mutationRate reproductionRate initialPopulation numIterations
+    let best = bestGeneticSolution knapsack finalPopulation
 
+    print $ flip solutionValue knapsack $ maximumBy (\x y -> if solutionValue x knapsack > solutionValue y knapsack then GT else LT) finalPopulation
 
--- call functions by command line args
-knapsack :: [String] -> IO ()
-knapsack ("-i" : input_file) = do
-  parsed_knapsack <- parseInput input_file
-  case parsed_knapsack of
-    Nothing -> error "parsing knapsack input failed"
-    Just knapsack -> print knapsack
-knapsack ("-b" : input_file) = do
-  parsed_knapsack <- parseInput input_file
-  case parsed_knapsack of
-    Nothing -> error "parsing knapsack input failed"
-    Just knapsack -> bruteforce knapsack
-knapsack ("-o" : input_file) = do
-  parsed_knapsack <- parseInput input_file
-  case parsed_knapsack of
-    Nothing -> error "parsing knapsack input failed"
-    Just knapsack -> geneticAlg knapsack
-knapsack _ = error "invalid arg"
+    case best of
+      Just solution -> printSolutionBitmap solution
+      Nothing -> print False
 
---read knapsack input from file or stdin
-readInput :: [FilePath] -> IO String
-readInput [] =  getContents
-readInput [input_file] = readFile input_file
-
--- parse knapsack input
-parseInput :: [FilePath] -> IO (Maybe Knapsack)
-parseInput args = do
-  input <- readInput args
-  return (case P.runParser knapsackParser () input input of
-          Left _  -> Nothing
-          Right x -> Just x)
-
---map found solution to bitmap
-solutionBitmap :: [Item] -> [Item] -> [Int]
-solutionBitmap allItems solutionItems =  map (\item -> if item `elem` solutionItems then 1 else 0) allItems
-
---map bitmap int array to string format with spaces
-printBitmap :: [Int] -> IO()
-printBitmap arr = do
-  putStr "Solution: "
-  putStrLn $  map (\char -> (if (char == ',') || (char == '"') then ' ' else char)) $ show arr
+----------bruteforce functions--------------------
 
 -- find solution using bruteforce solution (try all combinations, O(2^n))
 bruteforce :: Knapsack -> IO ()
 bruteforce (Knapsack maxWeight minCost items) = case bestSolution (0, Nothing) maxWeight minCost (subsequences items) of
   Nothing -> print False
-  Just solution -> printBitmap $ solutionBitmap items solution
+  Just solution -> printSolutionBitmap $ solutionBitmap items solution
 
 -- get maybe best solution (nothing if solution does not exist)
-bestSolution ::  (Int, Maybe [Item]) -> Int -> Int -> [[Item]] -> Maybe [Item]
+bestSolution :: (Int, Maybe [Item]) -> Int -> Int -> [[Item]] -> Maybe [Item]
 bestSolution best _ _ [] = snd best
-bestSolution (currentBestCost, solutionItems)  maxWeight minCost (x:xs) =
+bestSolution (currentBestCost, solutionItems) maxWeight minCost (x : xs) =
   let isValidAndBetterSolution = isValidAndBetter currentBestCost maxWeight minCost x
-  in
-  if fst isValidAndBetterSolution
-    then bestSolution (snd isValidAndBetterSolution, Just x) maxWeight minCost xs
-    else bestSolution (currentBestCost, solutionItems) maxWeight minCost xs
+   in if fst isValidAndBetterSolution
+        then bestSolution (snd isValidAndBetterSolution, Just x) maxWeight minCost xs
+        else bestSolution (currentBestCost, solutionItems) maxWeight minCost xs
 
 -- check if given solution is valid and is better than current best found
-isValidAndBetter :: Int->Int -> Int -> [Item] -> (Bool, Int)
+isValidAndBetter :: Int -> Int -> Int -> [Item] -> (Bool, Int)
 isValidAndBetter currentBest maxWeight minCost items =
-  let (totalWeight, totalCost) = foldl (\ (totalWeight, totalCost) (Item weight cost) -> (totalWeight + weight, totalCost + cost)) (0, 0) items
-  in
-  (totalWeight <= maxWeight && totalCost >= minCost && totalCost>currentBest, totalCost)
+  let (totalWeight, totalCost) = foldl (\(weightSum, costSum) (Item weight cost) -> (weightSum + weight, costSum + cost)) (0, 0) items
+   in (totalWeight <= maxWeight && totalCost >= minCost && totalCost > currentBest, totalCost)
 
+-- map found solution to bitmap
+solutionBitmap :: [Item] -> [Item] -> [Int]
+solutionBitmap allItems solutionItems = map (\item -> if item `elem` solutionItems then 1 else 0) allItems
 
+----general helper functions--------
+-- map bitmap int array to string format with spaces
+printSolutionBitmap :: [Int] -> IO ()
+printSolutionBitmap arr = do
+  putStr "Solution: "
+  putStrLn $ map (\char -> (if (char == ',') || (char == '"') then ' ' else char)) $ show arr
 
+-------input processing--------
 
--- input file parser
+-- call functions by command line args
+solveKnapsack :: [String] -> IO ()
+solveKnapsack ("-i" : input_file) = do
+  parsed_knapsack <- parseInput input_file
+  case parsed_knapsack of
+    Nothing -> error "parsing knapsack input failed"
+    Just knapsack -> print knapsack
+solveKnapsack ("-b" : input_file) = do
+  parsed_knapsack <- parseInput input_file
+  case parsed_knapsack of
+    Nothing -> error "parsing knapsack input failed"
+    Just knapsack -> bruteforce knapsack
+solveKnapsack ("-o" : input_file) = do
+  parsed_knapsack <- parseInput input_file
+  case parsed_knapsack of
+    Nothing -> error "parsing knapsack input failed"
+    Just knapsack -> geneticAlg knapsack
+solveKnapsack _ = error "invalid arg"
+
+-- read knapsack input from file or stdin
+readInput :: [FilePath] -> IO String
+readInput [] = getContents
+readInput [input_file] = readFile input_file
+readInput _ = error "invalid args"
+-- parse knapsack input
+parseInput :: [FilePath] -> IO (Maybe Knapsack)
+parseInput args = do
+  input <- readInput args
+  return
+    ( case P.runParser knapsackParser () input input of
+        Left _ -> Nothing
+        Right x -> Just x
+    )
+
+-- input parser
 knapsackParser :: P.Parser Knapsack
 knapsackParser = do
   _ <- P.manyTill P.anyChar P.newline
+  _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "maxWeight:")
   _ <- P.many (P.string " ")
   maxWeight <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
+  _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "minCost:")
   _ <- P.many (P.string " ")
   minCost <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
+  _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "items:")
-  _ <- P.manyTill P.anyChar (P.string "[")
   _ <- P.manyTill P.anyChar P.newline
-  items <- P.many item
+  items <- P.many itemParser
   return (Knapsack {maxWeight = maxWeight, minCost = minCost, items = items})
 
 -- parser for one item from list of items
-item = do
+itemParser = do
   _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "Item")
-  _ <- P.many (P.string " ")
-  _ <- P.manyTill P.anyChar (P.string "{")
   _ <- P.manyTill P.anyChar P.newline
   _ <- P.many (P.string " ")
   _ <- P.many1 (P.string "weight:")
@@ -233,10 +233,9 @@ item = do
   cost <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
   _ <- P.manyTill P.anyChar P.newline
-  return (Item{weight=weight, cost=cost})
-
+  return (Item {weight = weight, cost = cost})
 
 main :: IO ()
 main = do
-    args <- getArgs
-    knapsack args
+  args <- getArgs
+  solveKnapsack args
