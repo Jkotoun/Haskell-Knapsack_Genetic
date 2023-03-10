@@ -9,24 +9,24 @@ import Data.List (subsequences)
 
 -- find solution using bruteforce solution (try all combinations, O(2^n))
 bruteforce :: Knapsack -> IO (Either Bool [Int] )
-bruteforce (Knapsack maxWeight minCost items) = case bestSolution (0, Nothing) maxWeight minCost (subsequences items) of
+bruteforce (Knapsack maximumWeight minimalCost itemsList) = case bestSolution (0, Nothing) maximumWeight minimalCost (subsequences itemsList) of
   Nothing -> return $ Left False
-  Just solution -> return $ Right $ solutionBitmap items solution
+  Just solution -> return $ Right $ solutionBitmap itemsList solution
 
 -- get maybe best solution (nothing if solution does not exist)
 bestSolution :: (Int, Maybe [Item]) -> Int -> Int -> [[Item]] -> Maybe [Item]
 bestSolution best _ _ [] = snd best
-bestSolution (currentBestCost, solutionItems) maxWeight minCost (x : xs) =
-  let isValidAndBetterSolution = isValidAndBetter currentBestCost maxWeight minCost x
+bestSolution (currentBestCost, solutionItems) maximalWeight minimalCost (x : xs) =
+  let isValidAndBetterSolution = isValidAndBetter currentBestCost maximalWeight minimalCost x
    in if fst isValidAndBetterSolution
-        then bestSolution (snd isValidAndBetterSolution, Just x) maxWeight minCost xs
-        else bestSolution (currentBestCost, solutionItems) maxWeight minCost xs
+        then bestSolution (snd isValidAndBetterSolution, Just x) maximalWeight minimalCost xs
+        else bestSolution (currentBestCost, solutionItems) maximalWeight minimalCost xs
 
 -- check if given solution is valid and is better than current best found
 isValidAndBetter :: Int -> Int -> Int -> [Item] -> (Bool, Int)
-isValidAndBetter currentBest maxWeight minCost items =
-  let (totalWeight, totalCost) = foldl (\(weightSum, costSum) (Item weight cost) -> (weightSum + weight, costSum + cost)) (0, 0) items
-   in (totalWeight <= maxWeight && totalCost >= minCost && totalCost > currentBest, totalCost)
+isValidAndBetter currentBest maximalWeight minimalCost itemsList =
+  let (totalWeight, totalCost) = foldl (\(weightSum, costSum) (Item weight cost) -> (weightSum + weight, costSum + cost)) (0, 0) itemsList
+   in (totalWeight <= maximalWeight && totalCost >= minimalCost && totalCost > currentBest, totalCost)
 
 -- map found solution to bitmap
 solutionBitmap :: [Item] -> [Item] -> [Int]

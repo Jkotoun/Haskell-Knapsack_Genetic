@@ -6,7 +6,7 @@ import Control.Monad (replicateM)
 import Data.List (maximumBy)
 -- dot product of certain item prop and bitmap
 itemsPropBitmapDotProduct :: (Item -> Int) -> [Item] -> [Int] -> Int
-itemsPropBitmapDotProduct prop items bitmap = sum $ zipWith (*) (map prop items) bitmap
+itemsPropBitmapDotProduct prop itemsList bitmap = sum $ zipWith (*) (map prop itemsList) bitmap
 
 -- value of solution as binary array for given knapsack problem input
 solutionFitness :: [Int] -> Knapsack -> Int

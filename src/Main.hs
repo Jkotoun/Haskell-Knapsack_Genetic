@@ -4,15 +4,15 @@ import GeneticKnapsack (geneticAlg)
 
 import Types
 import System.Environment
-import Text.Parsec qualified as P
-import Text.Parsec.String qualified as P
+import qualified Text.Parsec as P
+import qualified Text.Parsec.String as P
 
 ----general helper functions--------
 -- map bitmap int array to string format with spaces
 printSolutionBitmap :: [Int] -> IO ()
 printSolutionBitmap arr = do
   putStr "Solution "
-  putStrLn $ map (\char -> if (char == ',') || (char == '"') then ' ' else char) $ show arr
+  putStrLn $ map (\character -> if (character == ',') || (character == '"') then ' ' else character) $ show arr
 
 -------input processing--------
 
