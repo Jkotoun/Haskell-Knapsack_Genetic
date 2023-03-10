@@ -4,7 +4,6 @@ import GeneticKnapsack (geneticAlg)
 
 import Types
 import System.Environment
-import System.Random (randomRIO)
 import Text.Parsec qualified as P
 import Text.Parsec.String qualified as P
 
@@ -17,10 +16,11 @@ printSolutionBitmap arr = do
 
 -------input processing--------
 
+runGeneticAlgo :: Knapsack -> IO ()
 runGeneticAlgo knapsack = do
   result <- geneticAlg knapsack populationSize crossoverRate mutationRate reproductionRate numIterations
   case result of
-    Left failure -> print False
+    Left _ -> print False 
     Right solution -> printSolutionBitmap solution
   where
     populationSize = 150
@@ -29,10 +29,11 @@ runGeneticAlgo knapsack = do
     reproductionRate = 0.3
     numIterations = 500
 
+runBruteforce :: Knapsack -> IO ()
 runBruteforce knapsack = do
   result <- bruteforce knapsack
   case result of 
-    Left failure -> print failure
+    Left _ -> print False
     Right solution -> printSolutionBitmap solution
 
 -- call functions by command line args
