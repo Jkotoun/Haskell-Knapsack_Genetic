@@ -1,5 +1,4 @@
 import BruteforceKnapsack(bruteforce)
-import Data.Functor.Identity
 import GeneticKnapsack (geneticAlg)
 
 import Types
@@ -20,7 +19,7 @@ runGeneticAlgo :: Knapsack -> IO ()
 runGeneticAlgo knapsack = do
   result <- geneticAlg knapsack populationSize crossoverRate mutationRate reproductionRate numIterations
   case result of
-    Left _ -> print False 
+    Left _ -> print False
     Right solution -> printSolutionBitmap solution
   where
     populationSize = 150
@@ -32,7 +31,7 @@ runGeneticAlgo knapsack = do
 runBruteforce :: Knapsack -> IO ()
 runBruteforce knapsack = do
   result <- bruteforce knapsack
-  case result of 
+  case result of
     Left _ -> print False
     Right solution -> printSolutionBitmap solution
 
@@ -75,39 +74,40 @@ parseInput args = do
 knapsackParser :: P.Parser Knapsack
 knapsackParser = do
   _ <- P.manyTill P.anyChar P.newline
-  _ <- P.many (P.string " ")
-  _ <- P.many1 (P.string "maxWeight:")
-  _ <- P.many (P.string " ")
+  _ <- P.spaces
+  _ <- P.string "maxWeight:"
+  _ <- P.spaces 
   maximalItemsWeight <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
-  _ <- P.many (P.string " ")
+  _ <- P.spaces
   _ <- P.many1 (P.string "minCost:")
-  _ <- P.many (P.string " ")
+  _ <- P.spaces
   minimalItemsCost <- read <$> P.many1 P.digit
+  _ <- P.spaces
+  _ <- P.string "items:"
   _ <- P.manyTill P.anyChar P.newline
-  _ <- P.many (P.string " ")
-  _ <- P.many1 (P.string "items:")
-  _ <- P.manyTill P.anyChar P.newline
-  itemsList <- P.many itemParser
+  itemsList <- P.many1 itemParser
   return (Knapsack {maxWeight = maximalItemsWeight, minCost = minimalItemsCost, items = itemsList})
 
 -- parser for one item from list of items
-itemParser :: P.ParsecT String u Data.Functor.Identity.Identity Item
+itemParser :: P.Parser Item
 itemParser = do
-  _ <- P.many (P.string " ")
-  _ <- P.many1 (P.string "Item")
+  _ <- P.spaces
+  _ <- P.string "Item"
   _ <- P.manyTill P.anyChar P.newline
-  _ <- P.many (P.string " ")
-  _ <- P.many1 (P.string "weight:")
-  _ <- P.many (P.string " ")
+  _ <- P.spaces
+  _ <- P.string "weight:"
+  _ <- P.spaces
   itemWeight <- read <$> P.many1 P.digit
-  _ <- P.manyTill P.anyChar P.newline
-  _ <- P.many (P.string " ")
-  _ <- P.many1 (P.string "cost:")
-  _ <- P.many (P.string " ")
+  _ <- P.spaces
+  _ <- P.string "cost:"
+  _ <- P.spaces
   itemCost <- read <$> P.many1 P.digit
   _ <- P.manyTill P.anyChar P.newline
   _ <- P.manyTill P.anyChar P.newline
+
+
+
   return (Item {weight = itemWeight, cost = itemCost})
 
 main :: IO ()
