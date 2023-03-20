@@ -30,5 +30,6 @@ isValidAndBetter currentBest maximalWeight minimalCost itemsList =
 
 -- map found solution to bitmap
 solutionBitmap :: [Item] -> [Item] -> [Int]
-solutionBitmap allItems solutionItems = map (\item -> if item `elem` solutionItems then 1 else 0) allItems
-
+solutionBitmap [] _ = []
+solutionBitmap (knapsackItem:knapsackItems) allSolutionItems@(solutionItem:solutionItems) = if knapsackItem == solutionItem then 1 : solutionBitmap knapsackItems solutionItems else 0 : solutionBitmap knapsackItems allSolutionItems
+solutionBitmap _ _ = []
